@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Saper</title>
+    <style>
+        #gameDiv {
+            display: grid;
+            width: fit-content;
+            height: fit-content;
+            margin: auto;
+            border: solid black 5px;
+            visibility: hidden;
+        }
+
+        h1, h2, div {
+            text-align: center;
+        }
+
+        input {
+            width: 10em;
+        }
+
+        button:disabled {
+            color: black;
+            font-weight: bold;
+        }
+
+        #win, #lose {
+            visibility: hidden;
+            z-index: 1;
+        }
+
+
+    </style>
+</head>
+<body>
+<div id="menu">
+    <h1>Saper</h1>
+    <h2>Podaj ustawienia gry:</h2>
+    <div id="settings">
+        <input id="width" type="number" placeholder="Szerokość" min="2" max="50">
+        <input id="height" type="number" placeholder="Wysokość" min="2" max="50">
+        <input id="bombNumber" type="number" placeholder="Liczba bomb" min="1">
+        <button id="startGame">Start</button>
+    </div>
+</div>
+
+<div id="gameArea">
+    <div id="win">
+        <h1>You win</h1>
+    </div>
+    <div id="lose">
+        <h1>You lose</h1>
+    </div>
+    <div id="gameDiv"></div>
+</div>
+
+
+<script>
+    const width = document.getElementById("width")
+    const height = document.getElementById("height")
+    const bombNumber = document.getElementById("bombNumber")
+    const startButton = document.getElementById("startGame")
+    const gameDiv = document.getElementById("gameDiv")
+    const win = document.getElementById("win")
+    const lose = document.getElementById("lose")
+
+    const defaultButtonBackground = document.createElement("button").style.background
+    let bombsMatrix;
+    let gameOver = true;
+    let fieldsToClick;
+
+    width.addEventListener("change", bombNumberMaxValue)
+    height.addEventListener("change", bombNumberMaxValue)
+    startButton.addEventListener("click", start)
+
+
+    function bombNumberMaxValue() {
+        bombNumber.max = width.value * height.value - 1
+    }
+
+    function start() {
+        gameOver = false;
+        if (width.value === "" || height.value === "" || bombNumber.value === "") return
+        width.value = Math.max(Math.min(width.value, width.max), width.min)
+        height.value = Math.max(Math.min(height.value, height.max), height.min)
+        bombNumber.value = Math.max(Math.min(bombNumber.value, bombNumber.max), bombNumber.min)
+        fieldsToClick = width.value * height.value - bombNumber.value
+        gameDiv.style.visibility = "visible"
+        win.style.visibility = "hidden"
+        lose.style.visibility = "hidden"
+
+        bombsMatrix = new Array(parseInt(width.value)).fill().map(() => new Array(parseInt(height.value)).fill(0))
+        let freePlaces = width.value * height.value
+
+        for (let i = 0; i < bombNumber.value; i++) {
+            let index = Math.floor(Math.random() * freePlaces)
+            let [x, y] = getXY(index)
+            while (bombsMatrix[x][y] === -1) {
+                index++
+                [x, y] = getXY(index)
+            }
+            bombsMatrix[x][y] = -1
+            freePlaces--
+            const minX = Math.max(x - 1, 0)
+            const maxX = Math.min(x + 2, width.value)
+            const minY = Math.max(y - 1, 0)
+            const maxY = Math.min(y + 2, height.value)
+            for (let j = minX; j < maxX; j++) {
+                for (let k = minY; k < maxY; k++) {
+                    if (bombsMatrix[j][k] !== -1) {
+                        bombsMatrix[j][k]++
+                    }
+                }
+            }
+        }
+
+        gameDiv.innerHTML = ''
+        gameDiv.style.gridTemplate = `repeat(${height.value}, 1fr)/repeat(${width.value}, 1fr)`
+        for (let i = 0; i < width.value; i++) {
+            for (let j = 0; j < height.value; j++) {
+                const button = document.createElement("button")
+                button.style.width = "1.5em"
+                button.style.height = "1.5em"
+                button.id = `${i}x${j}`
+                gameDiv.appendChild(button)
+                button.addEventListener("click", () => clickField(i, j))
+                button.addEventListener("contextmenu", (ev) => {
+                    ev.preventDefault()
+                    rightClick(i, j)
+                })
+            }
+        }
+    }
+
+    function getXY(index) {
+        return [Math.floor(index / height.value), index % height.value]
+    }
+
+    function rightClick(x, y) {
+        if (gameOver) return
+        const button = document.getElementById(`${x}x${y}`)
+        if (button.disabled) return
+        if (button.style.background === "black") {
+            button.style.background = defaultButtonBackground
+        } else {
+            button.style.background = "black"
+        }
+    }
+
+    function clickField(x, y) {
+        if (gameOver) return
+        const button = document.getElementById(`${x}x${y}`)
+        if (button.disabled) return
+        if (button.style.background === "black") return;
+        button.disabled = true
+        fieldsToClick--;
+        if (bombsMatrix[x][y] === -1) {
+            button.style.background = "red"
+            loseGame()
+
+        } else if (bombsMatrix[x][y] > 0) {
+            button.textContent = bombsMatrix[x][y]
+            if (fieldsToClick === 0) {
+                winGame()
+            }
+        } else {
+            const minX = Math.max(x - 1, 0)
+            const maxX = Math.min(x + 2, width.value)
+            const minY = Math.max(y - 1, 0)
+            const maxY = Math.min(y + 2, height.value)
+            for (let j = minX; j < maxX; j++) {
+                for (let k = minY; k < maxY; k++) {
+                    clickField(j, k)
+                }
+            }
+        }
+    }
+
+    function winGame() {
+        win.style.visibility = "visible"
+        gameOver = true
+    }
+
+    function loseGame() {
+        lose.style.visibility = "visible"
+        gameOver = true
+    }
+
+</script>
+</body>
+</html>
